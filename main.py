@@ -1,4 +1,5 @@
 import torch
+import os
 from torch import nn
 import torchvision
 import torchvision.transforms as transforms
@@ -30,15 +31,17 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = model.to(device)
 
 input1 = torch.rand(batch_size, seq_length, input_len, dtype=torch.float32).to(device)
-input2 = torch.rand_like(input1).to(device)
+like_input1=torch.rand(batch_size, seq_length, input_len, dtype=torch.float32).to(device)
+input2 = torch.rand_like(like_input1).to(device)
 
 mask1 = padding_mask(input1).to(device)
 mask2 = Mask(input1).to(device)
+mask1=mask1.to(device)
 
 # 数据加载和预处理
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
-train_dataset = torchvision.datasets.MNIST(root='D://data//mnist', train=True, transform=transform, download=True)
-test_dataset = torchvision.datasets.MNIST(root='D://data//mnist', train=False, transform=transform)
+train_dataset = torchvision.datasets.MNIST(root='mnist', train=True, transform=transform, download=True)
+test_dataset = torchvision.datasets.MNIST(root='mnist', train=False, transform=transform)
 
 train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
 test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
@@ -56,11 +59,17 @@ PaddingMask = padding_mask(mask_basis).to(device)
 AllMask = Mask(mask_basis).to(device)
 
 def save_images(images, epoch, batch, prefix):
-    images = images.view(images.size(0), 28, 28).cpu().numpy()
+    images = images.view(images.size(0), 28, 28).cpu().detach().numpy()
+    output_dir = 'output_images'
+    
+    # 检查并创建目录
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    
     for i in range(min(10, images.shape[0])):  # 保存前10张图片
         plt.imshow(images[i], cmap='gray')
         plt.axis('off')
-        plt.savefig(f'output_images/{prefix}_epoch{epoch+1}_batch{batch+1}_img{i+1}.png')
+        plt.savefig(f'{output_dir}/{prefix}_epoch{epoch+1}_batch{batch+1}_img{i+1}.png')
         plt.close()
 
 for epoch in range(num_epochs):
@@ -77,8 +86,9 @@ for epoch in range(num_epochs):
 
         # 使用expand扩展张量，参数顺序应为(20, 28, 1)
         input_left = temp.expand(-1, seq_length, -1).float().to(device)
-        input_right = torch.rand_like(input_left, dtype=torch.float32).to(device)
-
+        input_right = torch.rand_like(input_le;ft, dtype=torch.float32).to(device)
+        print(input_left.shape)
+        exit()
         output_data = model(input_left, input_right, mask1, mask2)
         images = images.view(20, 28, 28)
         loss += criterion(output_data, images)
@@ -90,7 +100,6 @@ for epoch in range(num_epochs):
             print(f'Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{len(train_loader)}], Loss: {loss.item():.4f}')
         if (i + 1) % 1000 == 0:
             save_images(output_data, epoch, i, "train")
-        exit()
     # 保存模型
     torch.save(model.state_dict(), f'output_images/model_epoch{epoch+1}.pth')
 
